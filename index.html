@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Quadro de Post-Its</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #fff;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+    }
+    #app {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    /* Botão de adição (+) */
+    #addButton {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background-color: #BAFFC9;
+      border: none;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      font-size: 2rem;
+      color: #fff;
+      cursor: pointer;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+      transition: background-color 0.3s;
+      z-index: 1000;
+    }
+    #addButton:hover {
+      background-color: #a0e8b1;
+    }
+
+    /* Botão para escolher a fonte (T) */
+    #fontButton {
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      background-color: #FFD1DC;
+      border: none;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      font-size: 1.4rem;
+      color: #333;
+      cursor: pointer;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+      transition: background-color 0.3s;
+      z-index: 1000;
+      font-family: "Georgia", serif; /* Fonte delicada para o 'T' */
+    }
+    #fontButton:hover {
+      background-color: #ffb9ca;
+    }
+
+    /* Paleta de cores */
+    #colorPicker {
+      position: fixed;
+      top: 140px;
+      right: 20px;
+      background: #fff;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      display: none;
+      flex-wrap: wrap;
+      gap: 10px;
+      z-index: 1000;
+    }
+    .color-option {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 1px solid #ccc;
+    }
+
+    /* Painel para escolha de fonte global com transição suave */
+    #fontPicker {
+      position: fixed;
+      top: 140px;
+      right: 80px;
+      background: #ffe6ec;          /* Tom pastel combinando com o botão T */
+      padding: 15px;
+      border: 1px solid #ffd1dc;    /* Borda combinando com a cor pastel */
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      z-index: 1000;
+      /* Animação de fade e slide */
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-10px);
+    }
+    /* Classe para exibir o painel com transição */
+    #fontPicker.show {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+
+    #fontPicker label {
+      display: block;
+      margin-bottom: 8px;
+      font-family: "Georgia", serif;
+      font-size: 0.95rem;
+      color: #333;
+    }
+
+    #globalFontSelect {
+      font-size: 0.9rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 5px;
+      outline: none;
+      font-family: 'Arial', sans-serif;
+    }
+    #globalFontSelect:focus {
+      border-color: #ffb9ca;
+      outline: none;
+    }
+
+    /* Estilo dos post-its */
+    .note {
+      position: absolute;
+      width: 200px;
+      min-height: 150px;
+      padding: 10px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    .note textarea {
+      width: 100%;
+      height: calc(100% - 40px);
+      border: none;
+      background: transparent;
+      resize: none;
+      font-size: 1rem;
+      outline: none;
+      user-select: text; /* Permite seleção e edição */
+    }
+
+    /* Botão de exclusão (delete) – sem preenchimento, apenas o 'X' meio transparente */
+    .delete-btn {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      background: transparent;
+      color: rgba(255, 255, 255, 0.7);
+      border: none;
+      font-weight: bold;
+      font-size: 1rem;
+      cursor: pointer;
+      z-index: 10;
+    }
+
+    /* Resizer: canto de redimensionamento mais discreto */
+    .resizer {
+      width: 15px;
+      height: 15px;
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      cursor: se-resize;
+      z-index: 10;
+      background: transparent; /* Invisível, mas funcional */
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <button id="addButton">+</button>
+    <button id="fontButton">T</button>
+
+    <!-- Paleta de cores para criar notas -->
+    <div id="colorPicker">
+      <!-- Cores originais -->
+      <div class="color-option" data-color="#FFB3BA" style="background-color: #FFB3BA;"></div>
+      <div class="color-option" data-color="#FFDFBA" style="background-color: #FFDFBA;"></div>
+      <div class="color-option" data-color="#FFFFBA" style="background-color: #FFFFBA;"></div>
+      <div class="color-option" data-color="#BAFFC9" style="background-color: #BAFFC9;"></div>
+      <div class="color-option" data-color="#BAE1FF" style="background-color: #BAE1FF;"></div>
+      <!-- Novas cores -->
+      <div class="color-option" data-color="#FFD1DC" style="background-color: #FFD1DC;"></div>
+      <div class="color-option" data-color="#C1FFC1" style="background-color: #C1FFC1;"></div>
+      <div class="color-option" data-color="#C9C9FF" style="background-color: #C9C9FF;"></div>
+      <div class="color-option" data-color="#FFFACD" style="background-color: #FFFACD;"></div>
+      <div class="color-option" data-color="#E0FFFF" style="background-color: #E0FFFF;"></div>
+    </div>
+
+    <!-- Picker de fontes global (com transição) -->
+    <div id="fontPicker">
+      <label for="globalFontSelect">Escolha a fonte:</label>
+      <select id="globalFontSelect">
+        <option value="Arial">Arial</option>
+        <option value="Comic Sans MS">Comic Sans MS</option>
+        <option value="Courier New">Courier New</option>
+        <option value="Georgia">Georgia</option>
+        <option value="Impact">Impact</option>
+        <option value="Lucida Console">Lucida Console</option>
+        <option value="Tahoma">Tahoma</option>
+        <option value="Trebuchet MS">Trebuchet MS</option>
+        <option value="Verdana">Verdana</option>
+      </select>
+    </div>
+  </div>
+
+  <script>
+    // Carrega as notas e a fonte global do localStorage
+    let notes = JSON.parse(localStorage.getItem('notes')) || [];
+    let globalFont = localStorage.getItem('globalFont') || "Arial";
+
+    const app = document.getElementById('app');
+    const addButton = document.getElementById('addButton');
+    const fontButton = document.getElementById('fontButton');
+    const colorPicker = document.getElementById('colorPicker');
+    const fontPicker = document.getElementById('fontPicker');
+    const globalFontSelect = document.getElementById('globalFontSelect');
+
+    // Define a fonte inicial do seletor
+    globalFontSelect.value = globalFont;
+
+    // Botão de adição de notas
+    addButton.addEventListener('click', () => {
+      // Abre a paleta de cores
+      colorPicker.style.display = 'flex';
+      // Fecha o painel de fonte
+      if (fontPicker.classList.contains('show')) {
+        fontPicker.classList.remove('show');
+      }
+    });
+
+    // Botão de escolha de fonte (T)
+    fontButton.addEventListener('click', () => {
+      // Fecha a paleta de cores, se estiver aberta
+      colorPicker.style.display = 'none';
+
+      // Exibe/oculta o painel de fonte com animação
+      if (fontPicker.classList.contains('show')) {
+        fontPicker.classList.remove('show');
+      } else {
+        fontPicker.classList.add('show');
+      }
+    });
+
+    // Evento de mudança de fonte global
+    globalFontSelect.addEventListener('change', (e) => {
+      globalFont = e.target.value;
+      localStorage.setItem('globalFont', globalFont);
+      // Atualiza a fonte de todas as notas
+      updateAllNotesFont();
+    });
+
+    // Aplica a fonte global em todas as notas
+    function updateAllNotesFont() {
+      const allTextAreas = document.querySelectorAll('.note textarea');
+      allTextAreas.forEach(ta => {
+        ta.style.fontFamily = globalFont;
+      });
+    }
+
+    // Lista de cores para criação de notas
+    document.querySelectorAll('.color-option').forEach(option => {
+      option.addEventListener('click', function() {
+        const color = this.getAttribute('data-color');
+        createNote(color);
+        colorPicker.style.display = 'none';
+      });
+    });
+
+    // Gera um ID único para cada nota
+    function generateId() {
+      return 'note-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+    }
+
+    // Cria uma nova nota
+    function createNote(color, id, content, x, y, width, height) {
+      const noteId = id || generateId();
+      const noteDiv = document.createElement('div');
+      noteDiv.className = 'note';
+      noteDiv.style.backgroundColor = color;
+      noteDiv.setAttribute('data-id', noteId);
+      noteDiv.style.left = x !== undefined ? x : '50px';
+      noteDiv.style.top = y !== undefined ? y : '50px';
+      noteDiv.style.width = width !== undefined ? width : '200px';
+      noteDiv.style.height = height !== undefined ? height : '150px';
+
+      // Botão de exclusão
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'delete-btn';
+      deleteBtn.textContent = 'X';
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        app.removeChild(noteDiv);
+        notes = notes.filter(note => note.id !== noteId);
+        saveNotes();
+      });
+      noteDiv.appendChild(deleteBtn);
+
+      // Área de texto
+      const textarea = document.createElement('textarea');
+      textarea.value = content || '';
+      // Aplica a fonte global
+      textarea.style.fontFamily = globalFont;
+
+      // Ao digitar, atualiza o conteúdo no localStorage
+      textarea.addEventListener('input', () => {
+        updateNote(
+          noteId,
+          noteDiv.style.left,
+          noteDiv.style.top,
+          color,
+          textarea.value,
+          noteDiv.style.width,
+          noteDiv.style.height
+        );
+      });
+      noteDiv.appendChild(textarea);
+
+      // Drag and drop para mover a nota
+      noteDiv.addEventListener('mousedown', mouseDown);
+      function mouseDown(e) {
+        // Se clicar no textarea ou resizer, não arrasta
+        if (
+          e.target.tagName.toLowerCase() === 'textarea' ||
+          e.target.classList.contains('resizer')
+        ) {
+          return;
+        }
+        e.preventDefault();
+        let shiftX = e.clientX - noteDiv.getBoundingClientRect().left;
+        let shiftY = e.clientY - noteDiv.getBoundingClientRect().top;
+
+        function moveAt(pageX, pageY) {
+          noteDiv.style.left = pageX - shiftX + 'px';
+          noteDiv.style.top = pageY - shiftY + 'px';
+        }
+
+        function onMouseMove(e) {
+          moveAt(e.pageX, e.pageY);
+        }
+        document.addEventListener('mousemove', onMouseMove);
+
+        document.addEventListener('mouseup', function mouseUp() {
+          document.removeEventListener('mousemove', onMouseMove);
+          document.removeEventListener('mouseup', mouseUp);
+          updateNote(
+            noteId,
+            noteDiv.style.left,
+            noteDiv.style.top,
+            color,
+            textarea.value,
+            noteDiv.style.width,
+            noteDiv.style.height
+          );
+        });
+      }
+      noteDiv.ondragstart = function() {
+        return false;
+      };
+
+      // Resizer para redimensionar
+      const resizer = document.createElement('div');
+      resizer.className = 'resizer';
+      resizer.addEventListener('mousedown', initResize);
+      noteDiv.appendChild(resizer);
+
+      function initResize(e) {
+        e.stopPropagation();
+        window.addEventListener('mousemove', Resize);
+        window.addEventListener('mouseup', stopResize);
+      }
+
+      function Resize(e) {
+        const rect = noteDiv.getBoundingClientRect();
+        let newWidth = e.clientX - rect.left;
+        let newHeight = e.clientY - rect.top;
+        // Define valores mínimos
+        if (newWidth < 150) newWidth = 150;
+        if (newHeight < 100) newHeight = 100;
+        noteDiv.style.width = newWidth + 'px';
+        noteDiv.style.height = newHeight + 'px';
+      }
+
+      function stopResize() {
+        window.removeEventListener('mousemove', Resize);
+        window.removeEventListener('mouseup', stopResize);
+        updateNote(
+          noteId,
+          noteDiv.style.left,
+          noteDiv.style.top,
+          color,
+          textarea.value,
+          noteDiv.style.width,
+          noteDiv.style.height
+        );
+      }
+
+      app.appendChild(noteDiv);
+
+      // Se a nota for nova, adiciona ao array
+      if (!notes.find(note => note.id === noteId)) {
+        notes.push({
+          id: noteId,
+          color: color,
+          content: textarea.value,
+          x: noteDiv.style.left,
+          y: noteDiv.style.top,
+          width: noteDiv.style.width,
+          height: noteDiv.style.height
+        });
+        saveNotes();
+      }
+    }
+
+    // Atualiza os dados de uma nota e salva no localStorage
+    function updateNote(id, x, y, color, content, width, height) {
+      notes = notes.map(note => {
+        if (note.id === id) {
+          return { id, color, content, x, y, width, height };
+        }
+        return note;
+      });
+      saveNotes();
+    }
+
+    // Salva as notas no localStorage
+    function saveNotes() {
+      localStorage.setItem('notes', JSON.stringify(notes));
+    }
+
+    // Carrega as notas salvas ao iniciar a aplicação
+    function loadNotes() {
+      notes.forEach(note => {
+        createNote(
+          note.color,
+          note.id,
+          note.content,
+          note.x,
+          note.y,
+          note.width,
+          note.height
+        );
+      });
+      // Aplica a fonte global em todas as notas existentes
+      updateAllNotesFont();
+    }
+
+    loadNotes();
+  </script>
+</body>
+</html>
