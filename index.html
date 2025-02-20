@@ -134,21 +134,25 @@
     .note {
       position: absolute;
       width: 200px;
-      min-height: 150px;
+      min-height: 160px; /* um pouco maior para acomodar o botão circular */
       padding: 10px;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
       border-radius: 5px;
       overflow: hidden;
     }
+    /* O botão "A" e o "X" ficam no topo, então o texto começa abaixo */
     .note textarea {
+      display: block;
+      margin-top: 40px; /* espaço para não ficar atrás do botão circular */
       width: 100%;
-      height: calc(100% - 40px);
+      height: calc(100% - 50px); /* ajusta para não ultrapassar a parte de baixo */
       border: none;
       background: transparent;
       resize: none;
       font-size: 1rem;
       outline: none;
-      user-select: text; /* Permite seleção e edição */
+      user-select: text;
+      box-sizing: border-box;
     }
 
     /* Botão de exclusão (delete) – sem preenchimento, apenas o 'X' meio transparente */
@@ -165,26 +169,28 @@
       z-index: 10;
     }
 
-    /* Botão "A" para abrir a paleta de cores de texto dentro do post-it */
+    /* Bolinha para escolher a cor do texto (em vez do quadrado) */
     .text-color-btn {
       position: absolute;
       top: 5px;
       left: 5px;
-      background-color: rgba(255, 255, 255, 0.8);
-      color: #333;
       border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 0.9rem;
-      width: 25px;
-      height: 25px;
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
       cursor: pointer;
       text-align: center;
-      line-height: 23px;
+      line-height: 26px;
+      font-size: 1rem;
       font-family: "Arial", sans-serif;
       z-index: 10;
+      outline: none;
+      /* Por padrão, fundo branco e cor escura */
+      background-color: #ffffff;
+      color: #333333;
     }
 
-    /* Paleta de cores de texto que aparece dentro de cada nota */
+    /* Paleta de cor de texto que aparece dentro do post-it */
     .text-color-palette {
       position: absolute;
       top: 35px;
@@ -238,7 +244,7 @@
       <div class="color-option" data-color="#E0FFFF" style="background-color: #E0FFFF;"></div>
     </div>
 
-    <!-- Picker de fonte global (somente família) -->
+    <!-- Painel de fonte global (somente família) -->
     <div id="fontPicker">
       <label for="globalFontSelect">Escolha a fonte:</label>
       <select id="globalFontSelect">
@@ -310,7 +316,7 @@
       });
     }
 
-    // Cores disponíveis para o texto de cada post-it
+    // Cores disponíveis para o texto (individual por post-it)
     const textColors = [
       "#FFD1DC","#FFDFBA","#FFFFBA","#BAFFC9","#BAE1FF",
       "#C1FFC1","#C9C9FF","#FFFACD","#E0FFFF","#FFFFFF",
@@ -330,6 +336,22 @@
     // Gera um ID único para cada nota
     function generateId() {
       return 'note-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+    }
+
+    // Ajusta a cor de fundo e a cor do texto do botão circular,
+    // definindo se o "A" deve ficar claro ou escuro
+    function setButtonColor(btn, bgColor) {
+      btn.style.backgroundColor = bgColor;
+      // Calcula o brilho para definir a cor do texto (A) em contraste
+      let c = bgColor.replace('#','');
+      if (c.length === 3) {
+        c = c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
+      }
+      let r = parseInt(c.substring(0,2),16);
+      let g = parseInt(c.substring(2,4),16);
+      let b = parseInt(c.substring(4,6),16);
+      let brightness = (0.299*r + 0.587*g + 0.114*b);
+      btn.style.color = (brightness > 155) ? '#333' : '#fff';
     }
 
     // Cria ou recria uma nota
@@ -359,9 +381,9 @@
       noteDiv.style.left = leftPos !== undefined ? leftPos + 'px' : '50px';
       noteDiv.style.top = topPos !== undefined ? topPos + 'px' : '50px';
       noteDiv.style.width = width !== undefined ? width : '200px';
-      noteDiv.style.height = height !== undefined ? height : '150px';
+      noteDiv.style.height = height !== undefined ? height : '160px';
 
-      // Botão de exclusão
+      // Botão de exclusão (X)
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'delete-btn';
       deleteBtn.textContent = 'X';
@@ -373,10 +395,12 @@
       });
       noteDiv.appendChild(deleteBtn);
 
-      // Botão "A" para abrir a paleta de cor de texto
+      // Bolinha para escolher a cor do texto
       const textColorBtn = document.createElement('button');
       textColorBtn.className = 'text-color-btn';
       textColorBtn.textContent = 'A';
+      // Ajusta a cor do botão para a cor de texto atual
+      setButtonColor(textColorBtn, noteTextColor);
       noteDiv.appendChild(textColorBtn);
 
       // Paleta de cor de texto dentro do post-it
@@ -390,7 +414,11 @@
         colorCircle.className = 'text-color-option';
         colorCircle.style.backgroundColor = cor;
         colorCircle.addEventListener('click', () => {
+          // Muda a cor do texto
           textarea.style.color = cor;
+          // Muda a bolinha para refletir a cor
+          setButtonColor(textColorBtn, cor);
+
           updateNote(
             noteId,
             parseInt(noteDiv.style.left),
@@ -414,10 +442,13 @@
           textColorPalette.style.display === 'flex' ? 'none' : 'flex';
       });
 
-      // Fecha a paleta se clicar fora dela
+      // Fecha a paleta se clicar no note (mas não na bolinha nem na paleta)
       noteDiv.addEventListener('click', (ev) => {
-        // Se clicou no note, mas não no botão "A" nem na paleta, fecha a paleta
-        if (ev.target !== textColorBtn && ev.target !== textColorPalette) {
+        if (
+          ev.target !== textColorBtn &&
+          ev.target !== textColorPalette &&
+          !ev.target.classList.contains('text-color-option')
+        ) {
           textColorPalette.style.display = 'none';
         }
       });
