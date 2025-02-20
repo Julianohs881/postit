@@ -39,7 +39,7 @@
       background-color: #a0e8b1;
     }
 
-    /* Botão para escolher a fonte (T) */
+    /* Botão para escolher a fonte global (T) */
     #fontButton {
       position: fixed;
       top: 80px;
@@ -61,7 +61,7 @@
       background-color: #ffb9ca;
     }
 
-    /* Paleta de cores para criar notas */
+    /* Paleta de cores para criar notas (fundo do post-it) */
     #colorPicker {
       position: fixed;
       top: 140px;
@@ -83,7 +83,7 @@
       border: 1px solid #ccc;
     }
 
-    /* Painel para escolha de fonte global (com transição suave) */
+    /* Painel para escolha de fonte global (somente família) */
     #fontPicker {
       position: fixed;
       top: 140px;
@@ -115,7 +115,7 @@
       color: #333;
     }
 
-    /* Seletor de família de fonte */
+    /* Seletor de família de fonte global */
     #globalFontSelect {
       font-size: 0.9rem;
       border: 1px solid #ccc;
@@ -128,21 +128,6 @@
     #globalFontSelect:focus {
       border-color: #ffb9ca;
       outline: none;
-    }
-
-    /* Paleta de cores de fonte */
-    #fontColorPalette {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 5px;
-    }
-    .font-color-option {
-      width: 30px;
-      height: 30px;
-      border-radius: 50%;
-      cursor: pointer;
-      border: 1px solid #ccc;
     }
 
     /* Estilo dos post-its */
@@ -180,6 +165,47 @@
       z-index: 10;
     }
 
+    /* Botão "A" para abrir a paleta de cores de texto dentro do post-it */
+    .text-color-btn {
+      position: absolute;
+      top: 5px;
+      left: 5px;
+      background-color: rgba(255, 255, 255, 0.8);
+      color: #333;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      width: 25px;
+      height: 25px;
+      cursor: pointer;
+      text-align: center;
+      line-height: 23px;
+      font-family: "Arial", sans-serif;
+      z-index: 10;
+    }
+
+    /* Paleta de cores de texto que aparece dentro de cada nota */
+    .text-color-palette {
+      position: absolute;
+      top: 35px;
+      left: 5px;
+      background: #fff;
+      padding: 5px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      display: none; /* Oculta por padrão */
+      flex-wrap: wrap;
+      gap: 5px;
+      z-index: 20;
+    }
+    .text-color-option {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 1px solid #ccc;
+    }
+
     /* Resizer: canto de redimensionamento mais discreto */
     .resizer {
       width: 15px;
@@ -212,7 +238,7 @@
       <div class="color-option" data-color="#E0FFFF" style="background-color: #E0FFFF;"></div>
     </div>
 
-    <!-- Picker de fonte global (família e cor) -->
+    <!-- Picker de fonte global (somente família) -->
     <div id="fontPicker">
       <label for="globalFontSelect">Escolha a fonte:</label>
       <select id="globalFontSelect">
@@ -226,29 +252,13 @@
         <option value="Trebuchet MS">Trebuchet MS</option>
         <option value="Verdana">Verdana</option>
       </select>
-
-      <label>Cor da fonte:</label>
-      <div id="fontColorPalette">
-        <!-- Paleta de cores para o texto, incluindo branco -->
-        <div class="font-color-option" data-color="#FFD1DC" style="background-color: #FFD1DC;"></div>
-        <div class="font-color-option" data-color="#FFDFBA" style="background-color: #FFDFBA;"></div>
-        <div class="font-color-option" data-color="#FFFFBA" style="background-color: #FFFFBA;"></div>
-        <div class="font-color-option" data-color="#BAFFC9" style="background-color: #BAFFC9;"></div>
-        <div class="font-color-option" data-color="#BAE1FF" style="background-color: #BAE1FF;"></div>
-        <div class="font-color-option" data-color="#C1FFC1" style="background-color: #C1FFC1;"></div>
-        <div class="font-color-option" data-color="#C9C9FF" style="background-color: #C9C9FF;"></div>
-        <div class="font-color-option" data-color="#FFFACD" style="background-color: #FFFACD;"></div>
-        <div class="font-color-option" data-color="#E0FFFF" style="background-color: #E0FFFF;"></div>
-        <div class="font-color-option" data-color="#FFFFFF" style="background-color: #FFFFFF;"></div>
-      </div>
     </div>
   </div>
 
   <script>
-    // Carrega as notas e configurações globais do localStorage
+    // Carrega as notas e a fonte global do localStorage
     let notes = JSON.parse(localStorage.getItem('notes')) || [];
     let globalFont = localStorage.getItem('globalFont') || "Arial";
-    let globalFontColor = localStorage.getItem('globalFontColor') || "#000000";
 
     const app = document.getElementById('app');
     const addButton = document.getElementById('addButton');
@@ -256,12 +266,11 @@
     const colorPicker = document.getElementById('colorPicker');
     const fontPicker = document.getElementById('fontPicker');
     const globalFontSelect = document.getElementById('globalFontSelect');
-    const fontColorPalette = document.getElementById('fontColorPalette');
 
     // Controle de deslocamento para novas notas (evitar sobreposição)
     let newNoteOffset = 0;
 
-    // Define valores iniciais do seletor de fonte
+    // Define a fonte inicial do seletor global
     globalFontSelect.value = globalFont;
 
     // Botão de adição de notas
@@ -290,31 +299,29 @@
     globalFontSelect.addEventListener('change', (e) => {
       globalFont = e.target.value;
       localStorage.setItem('globalFont', globalFont);
-      updateAllNotesStyle();
+      updateAllNotesFont();
     });
 
-    // Ao clicar em uma das cores de fonte
-    fontColorPalette.querySelectorAll('.font-color-option').forEach(option => {
-      option.addEventListener('click', () => {
-        globalFontColor = option.getAttribute('data-color');
-        localStorage.setItem('globalFontColor', globalFontColor);
-        updateAllNotesStyle();
-      });
-    });
-
-    // Aplica a fonte e cor globais a todos os textareas
-    function updateAllNotesStyle() {
+    // Aplica a fonte global (família) a todos os textareas
+    function updateAllNotesFont() {
       const allTextAreas = document.querySelectorAll('.note textarea');
       allTextAreas.forEach(ta => {
         ta.style.fontFamily = globalFont;
-        ta.style.color = globalFontColor;
       });
     }
+
+    // Cores disponíveis para o texto de cada post-it
+    const textColors = [
+      "#FFD1DC","#FFDFBA","#FFFFBA","#BAFFC9","#BAE1FF",
+      "#C1FFC1","#C9C9FF","#FFFACD","#E0FFFF","#FFFFFF",
+      "#333333","#555555","#777777","#000000"
+    ];
 
     // Cria a nota com a cor de fundo selecionada
     document.querySelectorAll('.color-option').forEach(option => {
       option.addEventListener('click', function() {
         const color = this.getAttribute('data-color');
+        // Cria uma nova nota
         createNote(color);
         colorPicker.style.display = 'none';
       });
@@ -326,27 +333,29 @@
     }
 
     // Cria ou recria uma nota
-    function createNote(color, id, content, x, y, width, height) {
+    // textColor é salvo individualmente em cada nota
+    function createNote(color, id, content, x, y, width, height, textColor) {
       const noteId = id || generateId();
 
-      // Se for uma nota nova (sem ID salvo), definimos a posição inicial com offset
+      // Se for uma nota nova, definimos posição inicial com offset
       let leftPos = x;
       let topPos = y;
       if (!id) {
-        // x e y não foram passados, então aplicamos o deslocamento
         if (leftPos === undefined && topPos === undefined) {
           leftPos = 50 + newNoteOffset;
           topPos = 50 + newNoteOffset;
-          newNoteOffset += 30; // A cada nova nota, desloca mais 30px
+          newNoteOffset += 30; // desloca cada nova nota
         }
       }
 
+      // Se não existir cor de texto, define padrão (preto)
+      const noteTextColor = textColor || "#000000";
+
+      // Container da nota
       const noteDiv = document.createElement('div');
       noteDiv.className = 'note';
       noteDiv.style.backgroundColor = color;
       noteDiv.setAttribute('data-id', noteId);
-
-      // Define posição e tamanho (ou usa valores padrão)
       noteDiv.style.left = leftPos !== undefined ? leftPos + 'px' : '50px';
       noteDiv.style.top = topPos !== undefined ? topPos + 'px' : '50px';
       noteDiv.style.width = width !== undefined ? width : '200px';
@@ -364,12 +373,60 @@
       });
       noteDiv.appendChild(deleteBtn);
 
+      // Botão "A" para abrir a paleta de cor de texto
+      const textColorBtn = document.createElement('button');
+      textColorBtn.className = 'text-color-btn';
+      textColorBtn.textContent = 'A';
+      noteDiv.appendChild(textColorBtn);
+
+      // Paleta de cor de texto dentro do post-it
+      const textColorPalette = document.createElement('div');
+      textColorPalette.className = 'text-color-palette';
+      noteDiv.appendChild(textColorPalette);
+
+      // Cria as opções de cor para o texto
+      textColors.forEach(cor => {
+        const colorCircle = document.createElement('div');
+        colorCircle.className = 'text-color-option';
+        colorCircle.style.backgroundColor = cor;
+        colorCircle.addEventListener('click', () => {
+          textarea.style.color = cor;
+          updateNote(
+            noteId,
+            parseInt(noteDiv.style.left),
+            parseInt(noteDiv.style.top),
+            color,          // cor de fundo
+            textarea.value,
+            noteDiv.style.width,
+            noteDiv.style.height,
+            cor             // nova cor de texto
+          );
+          textColorPalette.style.display = 'none';
+        });
+        textColorPalette.appendChild(colorCircle);
+      });
+
+      // Exibir/ocultar paleta de cor de texto
+      textColorBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // Se a paleta estiver fechada, abre; se estiver aberta, fecha
+        textColorPalette.style.display =
+          textColorPalette.style.display === 'flex' ? 'none' : 'flex';
+      });
+
+      // Fecha a paleta se clicar fora dela
+      noteDiv.addEventListener('click', (ev) => {
+        // Se clicou no note, mas não no botão "A" nem na paleta, fecha a paleta
+        if (ev.target !== textColorBtn && ev.target !== textColorPalette) {
+          textColorPalette.style.display = 'none';
+        }
+      });
+
       // Área de texto
       const textarea = document.createElement('textarea');
       textarea.value = content || '';
-      // Aplica a fonte e cor globais
-      textarea.style.fontFamily = globalFont;
-      textarea.style.color = globalFontColor;
+      textarea.style.fontFamily = globalFont; // aplica a fonte global
+      textarea.style.color = noteTextColor;   // cor de texto individual
 
       // Ao digitar, atualiza o conteúdo no localStorage
       textarea.addEventListener('input', () => {
@@ -380,7 +437,8 @@
           color,
           textarea.value,
           noteDiv.style.width,
-          noteDiv.style.height
+          noteDiv.style.height,
+          textarea.style.color
         );
       });
       noteDiv.appendChild(textarea);
@@ -388,10 +446,14 @@
       // Drag and drop para mover a nota
       noteDiv.addEventListener('mousedown', mouseDown);
       function mouseDown(e) {
-        // Se clicar no textarea ou resizer, não arrasta
+        // Se clicar no textarea, resizer ou botões, não arrasta
         if (
           e.target.tagName.toLowerCase() === 'textarea' ||
-          e.target.classList.contains('resizer')
+          e.target.classList.contains('resizer') ||
+          e.target.classList.contains('delete-btn') ||
+          e.target.classList.contains('text-color-btn') ||
+          e.target.classList.contains('text-color-option') ||
+          e.target.classList.contains('text-color-palette')
         ) {
           return;
         }
@@ -419,7 +481,8 @@
             color,
             textarea.value,
             noteDiv.style.width,
-            noteDiv.style.height
+            noteDiv.style.height,
+            textarea.style.color
           );
         });
       }
@@ -460,7 +523,8 @@
           color,
           textarea.value,
           noteDiv.style.width,
-          noteDiv.style.height
+          noteDiv.style.height,
+          textarea.style.color
         );
       }
 
@@ -471,6 +535,7 @@
         notes.push({
           id: noteId,
           color: color,
+          textColor: noteTextColor,
           content: textarea.value,
           x: parseInt(noteDiv.style.left),
           y: parseInt(noteDiv.style.top),
@@ -482,10 +547,12 @@
     }
 
     // Atualiza os dados de uma nota e salva no localStorage
-    function updateNote(id, x, y, color, content, width, height) {
+    function updateNote(id, x, y, color, content, width, height, textColor) {
       notes = notes.map(note => {
         if (note.id === id) {
-          return { id, color, content, x, y, width, height };
+          return {
+            id, color, content, x, y, width, height, textColor
+          };
         }
         return note;
       });
@@ -507,11 +574,12 @@
           note.x,
           note.y,
           note.width,
-          note.height
+          note.height,
+          note.textColor
         );
       });
-      // Aplica a fonte e cor globais em todas as notas existentes
-      updateAllNotesStyle();
+      // Aplica a fonte global em todas as notas existentes
+      updateAllNotesFont();
     }
 
     loadNotes();
