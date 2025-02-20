@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Quadro de Post-Its</title>
+  <title>Quadro de Post-Its com Login</title>
   <style>
     body {
       margin: 0;
@@ -12,10 +12,79 @@
       font-family: Arial, sans-serif;
       overflow: hidden;
     }
+    /* Container geral do app */
     #app {
       position: relative;
       width: 100vw;
       height: 100vh;
+    }
+
+    /* =========================
+       1) ESTILOS DA TELA DE LOGIN
+       ========================= */
+    #loginContainer {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #ffe6ec; /* tom pastel delicado */
+      z-index: 2000;      /* fica na frente do restante */
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+    #loginBox {
+      background: #fff;
+      border: 1px solid #ffd1dc;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      padding: 20px 30px;
+      text-align: center;
+      width: 300px;
+      max-width: 90%;
+    }
+    #loginBox h2 {
+      margin-top: 0;
+      font-family: "Georgia", serif;
+      color: #333;
+      margin-bottom: 15px;
+    }
+    #loginBox input {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      outline: none;
+      font-size: 1rem;
+    }
+    #loginBox button {
+      background-color: #FFD1DC;
+      border: none;
+      border-radius: 5px;
+      padding: 10px 20px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.3s;
+      font-family: "Georgia", serif;
+    }
+    #loginBox button:hover {
+      background-color: #ffb9ca;
+    }
+    #errorMsg {
+      color: red;
+      font-size: 0.9rem;
+      min-height: 1em;
+      margin-bottom: 5px;
+    }
+
+    /* =========================
+       2) ESTILOS DA ÁREA DE POST-ITS
+       ========================= */
+    /* Oculta o container até logar */
+    #postItContainer {
+      width: 100%;
+      height: 100%;
+      display: none; /* escondido inicialmente */
     }
 
     /* Botão de adição (+) */
@@ -88,13 +157,12 @@
       position: fixed;
       top: 140px;
       right: 80px;
-      background: #ffe6ec;          /* Tom pastel combinando com o botão T */
+      background: #ffe6ec;
       padding: 15px;
-      border: 1px solid #ffd1dc;    /* Borda combinando com a cor pastel */
+      border: 1px solid #ffd1dc;
       border-radius: 8px;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
       z-index: 1000;
-      /* Animação de fade e slide */
       transition: opacity 0.3s ease, transform 0.3s ease;
       opacity: 0;
       visibility: hidden;
@@ -114,7 +182,6 @@
       font-size: 0.95rem;
       color: #333;
     }
-
     #globalFontSelect {
       font-size: 0.9rem;
       border: 1px solid #ccc;
@@ -177,7 +244,21 @@
   </style>
 </head>
 <body>
-  <div id="app">
+<div id="app">
+
+  <!-- (A) TELA DE LOGIN -->
+  <div id="loginContainer">
+    <div id="loginBox">
+      <h2>Bem-vindo(a)!</h2>
+      <div id="errorMsg"></div>
+      <input type="text" id="usernameInput" placeholder="Usuário" />
+      <input type="password" id="passwordInput" placeholder="Senha" />
+      <button id="loginBtn">Entrar / Registrar</button>
+    </div>
+  </div>
+
+  <!-- (B) CONTAINER DO QUADRO DE POST-ITS (só aparece após login) -->
+  <div id="postItContainer">
     <button id="addButton">+</button>
     <button id="fontButton">T</button>
 
@@ -214,248 +295,341 @@
     </div>
   </div>
 
-  <script>
-    // Carrega as notas e a fonte global do localStorage
-    let notes = JSON.parse(localStorage.getItem('notes')) || [];
-    let globalFont = localStorage.getItem('globalFont') || "Arial";
+</div>
 
-    const app = document.getElementById('app');
-    const addButton = document.getElementById('addButton');
-    const fontButton = document.getElementById('fontButton');
-    const colorPicker = document.getElementById('colorPicker');
-    const fontPicker = document.getElementById('fontPicker');
-    const globalFontSelect = document.getElementById('globalFontSelect');
+<script>
+/* =====================================================
+   1) SISTEMA DE LOGIN SIMPLES EM LOCALSTORAGE
+   ===================================================== */
+// Estrutura de dados no localStorage: "users" => {
+//   "nomeUsuario": {
+//       "password": "1234",
+//       "globalFont": "Arial",
+//       "notes": [ ... ]
+//   },
+//   "outroUsuario": {
+//       ...
+//   }
+// }
+let users = JSON.parse(localStorage.getItem('users')) || {};
 
-    // Define a fonte inicial do seletor
-    globalFontSelect.value = globalFont;
+// Usuário logado atualmente (null se não logado)
+let currentUser = null;
 
-    // Botão de adição de notas
-    addButton.addEventListener('click', () => {
-      // Abre a paleta de cores
-      colorPicker.style.display = 'flex';
-      // Fecha o painel de fonte
-      if (fontPicker.classList.contains('show')) {
-        fontPicker.classList.remove('show');
-      }
+// Referências aos elementos de login
+const loginContainer = document.getElementById('loginContainer');
+const errorMsg = document.getElementById('errorMsg');
+const usernameInput = document.getElementById('usernameInput');
+const passwordInput = document.getElementById('passwordInput');
+const loginBtn = document.getElementById('loginBtn');
+
+// Ao clicar em "Entrar / Registrar"
+loginBtn.addEventListener('click', () => {
+  const username = usernameInput.value.trim();
+  const password = passwordInput.value;
+
+  // Validação básica
+  if (!username || !password) {
+    errorMsg.textContent = "Por favor, preencha usuário e senha.";
+    return;
+  }
+
+  // Verifica se usuário já existe
+  if (!users[username]) {
+    // Se não existe, cria novo
+    users[username] = {
+      password: password,
+      globalFont: "Arial", // Fonte padrão
+      notes: []
+    };
+    saveUsers();
+    loginSuccess(username);
+  } else {
+    // Se existe, confere a senha
+    if (users[username].password === password) {
+      loginSuccess(username);
+    } else {
+      errorMsg.textContent = "Senha incorreta.";
+    }
+  }
+});
+
+// Salva o objeto "users" no localStorage
+function saveUsers() {
+  localStorage.setItem('users', JSON.stringify(users));
+}
+
+// Função chamada quando o login é bem-sucedido
+function loginSuccess(username) {
+  currentUser = username;
+  errorMsg.textContent = "";
+  // Esconde tela de login
+  loginContainer.style.display = 'none';
+  // Mostra o container de post-its
+  document.getElementById('postItContainer').style.display = 'block';
+  // Carrega as notas do usuário logado
+  loadNotesForUser();
+  // Aplica a fonte global que ele já tinha salvo (se existir)
+  globalFont = users[currentUser].globalFont || "Arial";
+  globalFontSelect.value = globalFont;
+  updateAllNotesFont();
+}
+
+/* =====================================================
+   2) LÓGICA DO QUADRO DE POST-ITS
+   ===================================================== */
+
+// Referências dos elementos de post-it
+const postItContainer = document.getElementById('postItContainer');
+const addButton = document.getElementById('addButton');
+const fontButton = document.getElementById('fontButton');
+const colorPicker = document.getElementById('colorPicker');
+const fontPicker = document.getElementById('fontPicker');
+const globalFontSelect = document.getElementById('globalFontSelect');
+
+// Fonte global (por padrão "Arial", mas pode mudar após login)
+let globalFont = "Arial";
+
+// Variável para deslocar cada novo post-it
+let nextNoteOffset = 0;
+
+/* Botão de adicionar nota */
+addButton.addEventListener('click', () => {
+  // Abre a paleta de cores
+  colorPicker.style.display = 'flex';
+  // Fecha o painel de fonte, se estiver aberto
+  if (fontPicker.classList.contains('show')) {
+    fontPicker.classList.remove('show');
+  }
+});
+
+/* Botão de escolher fonte (T) */
+fontButton.addEventListener('click', () => {
+  // Fecha a paleta de cores, se estiver aberta
+  colorPicker.style.display = 'none';
+  // Exibe/oculta o painel de fonte com animação
+  fontPicker.classList.toggle('show');
+});
+
+/* Ao mudar a fonte global no select */
+globalFontSelect.addEventListener('change', (e) => {
+  globalFont = e.target.value;
+  // Atualiza o campo no objeto do usuário atual
+  users[currentUser].globalFont = globalFont;
+  saveUsers();
+  // Aplica a fonte em todas as notas
+  updateAllNotesFont();
+});
+
+/* Cores disponíveis para criar notas */
+document.querySelectorAll('.color-option').forEach(option => {
+  option.addEventListener('click', function() {
+    const color = this.getAttribute('data-color');
+    createNote(color);
+    colorPicker.style.display = 'none';
+  });
+});
+
+/* Aplica a fonte global em todas as notas já na tela */
+function updateAllNotesFont() {
+  const allTextAreas = document.querySelectorAll('.note textarea');
+  allTextAreas.forEach(ta => {
+    ta.style.fontFamily = globalFont;
+  });
+}
+
+/* Cria uma nova nota */
+function createNote(color, id, content, x, y, width, height) {
+  // Se não recebeu id, é uma nota nova
+  const noteId = id || generateId();
+
+  // Se for nova, definimos posição deslocada para não sobrepor
+  const leftPos = (x !== undefined) ? x : (50 + nextNoteOffset) + 'px';
+  const topPos  = (y !== undefined) ? y : (50 + nextNoteOffset) + 'px';
+
+  // Incrementa o offset para a próxima nota
+  if (x === undefined && y === undefined) {
+    nextNoteOffset += 30;
+  }
+
+  const noteDiv = document.createElement('div');
+  noteDiv.className = 'note';
+  noteDiv.style.backgroundColor = color;
+  noteDiv.setAttribute('data-id', noteId);
+  noteDiv.style.left = leftPos;
+  noteDiv.style.top = topPos;
+  noteDiv.style.width = width || '200px';
+  noteDiv.style.height = height || '150px';
+
+  // Botão de exclusão
+  const deleteBtn = document.createElement('button');
+  deleteBtn.className = 'delete-btn';
+  deleteBtn.textContent = 'X';
+  deleteBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    postItContainer.removeChild(noteDiv);
+    // Remove do array de notas do usuário atual
+    users[currentUser].notes = users[currentUser].notes.filter(n => n.id !== noteId);
+    saveUsers();
+  });
+  noteDiv.appendChild(deleteBtn);
+
+  // Área de texto
+  const textarea = document.createElement('textarea');
+  textarea.value = content || '';
+  // Aplica a fonte global
+  textarea.style.fontFamily = globalFont;
+
+  // Ao digitar, atualiza o conteúdo no localStorage
+  textarea.addEventListener('input', () => {
+    updateNote(
+      noteId,
+      noteDiv.style.left,
+      noteDiv.style.top,
+      color,
+      textarea.value,
+      noteDiv.style.width,
+      noteDiv.style.height
+    );
+  });
+  noteDiv.appendChild(textarea);
+
+  // Drag and drop para mover a nota
+  noteDiv.addEventListener('mousedown', mouseDown);
+  function mouseDown(e) {
+    // Se clicar no textarea ou resizer, não arrasta
+    if (
+      e.target.tagName.toLowerCase() === 'textarea' ||
+      e.target.classList.contains('resizer')
+    ) {
+      return;
+    }
+    e.preventDefault();
+    let shiftX = e.clientX - noteDiv.getBoundingClientRect().left;
+    let shiftY = e.clientY - noteDiv.getBoundingClientRect().top;
+
+    function moveAt(pageX, pageY) {
+      noteDiv.style.left = pageX - shiftX + 'px';
+      noteDiv.style.top = pageY - shiftY + 'px';
+    }
+
+    function onMouseMove(e) {
+      moveAt(e.pageX, e.pageY);
+    }
+    document.addEventListener('mousemove', onMouseMove);
+
+    document.addEventListener('mouseup', function mouseUp() {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', mouseUp);
+      updateNote(
+        noteId,
+        noteDiv.style.left,
+        noteDiv.style.top,
+        color,
+        textarea.value,
+        noteDiv.style.width,
+        noteDiv.style.height
+      );
     });
+  }
+  noteDiv.ondragstart = function() {
+    return false;
+  };
 
-    // Botão de escolha de fonte (T)
-    fontButton.addEventListener('click', () => {
-      // Fecha a paleta de cores, se estiver aberta
-      colorPicker.style.display = 'none';
+  // Resizer para redimensionar
+  const resizer = document.createElement('div');
+  resizer.className = 'resizer';
+  resizer.addEventListener('mousedown', initResize);
+  noteDiv.appendChild(resizer);
 
-      // Exibe/oculta o painel de fonte com animação
-      if (fontPicker.classList.contains('show')) {
-        fontPicker.classList.remove('show');
-      } else {
-        fontPicker.classList.add('show');
-      }
+  function initResize(e) {
+    e.stopPropagation();
+    window.addEventListener('mousemove', Resize);
+    window.addEventListener('mouseup', stopResize);
+  }
+
+  function Resize(e) {
+    const rect = noteDiv.getBoundingClientRect();
+    let newWidth = e.clientX - rect.left;
+    let newHeight = e.clientY - rect.top;
+    // Define valores mínimos
+    if (newWidth < 150) newWidth = 150;
+    if (newHeight < 100) newHeight = 100;
+    noteDiv.style.width = newWidth + 'px';
+    noteDiv.style.height = newHeight + 'px';
+  }
+
+  function stopResize() {
+    window.removeEventListener('mousemove', Resize);
+    window.removeEventListener('mouseup', stopResize);
+    updateNote(
+      noteId,
+      noteDiv.style.left,
+      noteDiv.style.top,
+      color,
+      textarea.value,
+      noteDiv.style.width,
+      noteDiv.style.height
+    );
+  }
+
+  postItContainer.appendChild(noteDiv);
+
+  // Se a nota for nova, adiciona ao array do usuário
+  if (!id) {
+    users[currentUser].notes.push({
+      id: noteId,
+      color: color,
+      content: textarea.value,
+      x: noteDiv.style.left,
+      y: noteDiv.style.top,
+      width: noteDiv.style.width,
+      height: noteDiv.style.height
     });
+    saveUsers();
+  }
+}
 
-    // Evento de mudança de fonte global
-    globalFontSelect.addEventListener('change', (e) => {
-      globalFont = e.target.value;
-      localStorage.setItem('globalFont', globalFont);
-      // Atualiza a fonte de todas as notas
-      updateAllNotesFont();
-    });
+/* Gera um ID único para cada nota */
+function generateId() {
+  return 'note-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+}
 
-    // Aplica a fonte global em todas as notas
-    function updateAllNotesFont() {
-      const allTextAreas = document.querySelectorAll('.note textarea');
-      allTextAreas.forEach(ta => {
-        ta.style.fontFamily = globalFont;
-      });
+/* Atualiza os dados de uma nota no array do usuário atual */
+function updateNote(id, x, y, color, content, width, height) {
+  let userNotes = users[currentUser].notes;
+  userNotes = userNotes.map(note => {
+    if (note.id === id) {
+      return { id, color, content, x, y, width, height };
     }
+    return note;
+  });
+  users[currentUser].notes = userNotes;
+  saveUsers();
+}
 
-    // Lista de cores para criação de notas
-    document.querySelectorAll('.color-option').forEach(option => {
-      option.addEventListener('click', function() {
-        const color = this.getAttribute('data-color');
-        createNote(color);
-        colorPicker.style.display = 'none';
-      });
-    });
+/* Carrega as notas do usuário atual */
+function loadNotesForUser() {
+  // Limpa qualquer nota que esteja na tela
+  document.querySelectorAll('.note').forEach(n => n.remove());
 
-    // Gera um ID único para cada nota
-    function generateId() {
-      return 'note-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
-    }
+  // Reseta offset para que notas novas fiquem deslocadas
+  nextNoteOffset = 0;
 
-    // Cria uma nova nota
-    function createNote(color, id, content, x, y, width, height) {
-      const noteId = id || generateId();
-      const noteDiv = document.createElement('div');
-      noteDiv.className = 'note';
-      noteDiv.style.backgroundColor = color;
-      noteDiv.setAttribute('data-id', noteId);
-      noteDiv.style.left = x !== undefined ? x : '50px';
-      noteDiv.style.top = y !== undefined ? y : '50px';
-      noteDiv.style.width = width !== undefined ? width : '200px';
-      noteDiv.style.height = height !== undefined ? height : '150px';
-
-      // Botão de exclusão
-      const deleteBtn = document.createElement('button');
-      deleteBtn.className = 'delete-btn';
-      deleteBtn.textContent = 'X';
-      deleteBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        app.removeChild(noteDiv);
-        notes = notes.filter(note => note.id !== noteId);
-        saveNotes();
-      });
-      noteDiv.appendChild(deleteBtn);
-
-      // Área de texto
-      const textarea = document.createElement('textarea');
-      textarea.value = content || '';
-      // Aplica a fonte global
-      textarea.style.fontFamily = globalFont;
-
-      // Ao digitar, atualiza o conteúdo no localStorage
-      textarea.addEventListener('input', () => {
-        updateNote(
-          noteId,
-          noteDiv.style.left,
-          noteDiv.style.top,
-          color,
-          textarea.value,
-          noteDiv.style.width,
-          noteDiv.style.height
-        );
-      });
-      noteDiv.appendChild(textarea);
-
-      // Drag and drop para mover a nota
-      noteDiv.addEventListener('mousedown', mouseDown);
-      function mouseDown(e) {
-        // Se clicar no textarea ou resizer, não arrasta
-        if (
-          e.target.tagName.toLowerCase() === 'textarea' ||
-          e.target.classList.contains('resizer')
-        ) {
-          return;
-        }
-        e.preventDefault();
-        let shiftX = e.clientX - noteDiv.getBoundingClientRect().left;
-        let shiftY = e.clientY - noteDiv.getBoundingClientRect().top;
-
-        function moveAt(pageX, pageY) {
-          noteDiv.style.left = pageX - shiftX + 'px';
-          noteDiv.style.top = pageY - shiftY + 'px';
-        }
-
-        function onMouseMove(e) {
-          moveAt(e.pageX, e.pageY);
-        }
-        document.addEventListener('mousemove', onMouseMove);
-
-        document.addEventListener('mouseup', function mouseUp() {
-          document.removeEventListener('mousemove', onMouseMove);
-          document.removeEventListener('mouseup', mouseUp);
-          updateNote(
-            noteId,
-            noteDiv.style.left,
-            noteDiv.style.top,
-            color,
-            textarea.value,
-            noteDiv.style.width,
-            noteDiv.style.height
-          );
-        });
-      }
-      noteDiv.ondragstart = function() {
-        return false;
-      };
-
-      // Resizer para redimensionar
-      const resizer = document.createElement('div');
-      resizer.className = 'resizer';
-      resizer.addEventListener('mousedown', initResize);
-      noteDiv.appendChild(resizer);
-
-      function initResize(e) {
-        e.stopPropagation();
-        window.addEventListener('mousemove', Resize);
-        window.addEventListener('mouseup', stopResize);
-      }
-
-      function Resize(e) {
-        const rect = noteDiv.getBoundingClientRect();
-        let newWidth = e.clientX - rect.left;
-        let newHeight = e.clientY - rect.top;
-        // Define valores mínimos
-        if (newWidth < 150) newWidth = 150;
-        if (newHeight < 100) newHeight = 100;
-        noteDiv.style.width = newWidth + 'px';
-        noteDiv.style.height = newHeight + 'px';
-      }
-
-      function stopResize() {
-        window.removeEventListener('mousemove', Resize);
-        window.removeEventListener('mouseup', stopResize);
-        updateNote(
-          noteId,
-          noteDiv.style.left,
-          noteDiv.style.top,
-          color,
-          textarea.value,
-          noteDiv.style.width,
-          noteDiv.style.height
-        );
-      }
-
-      app.appendChild(noteDiv);
-
-      // Se a nota for nova, adiciona ao array
-      if (!notes.find(note => note.id === noteId)) {
-        notes.push({
-          id: noteId,
-          color: color,
-          content: textarea.value,
-          x: noteDiv.style.left,
-          y: noteDiv.style.top,
-          width: noteDiv.style.width,
-          height: noteDiv.style.height
-        });
-        saveNotes();
-      }
-    }
-
-    // Atualiza os dados de uma nota e salva no localStorage
-    function updateNote(id, x, y, color, content, width, height) {
-      notes = notes.map(note => {
-        if (note.id === id) {
-          return { id, color, content, x, y, width, height };
-        }
-        return note;
-      });
-      saveNotes();
-    }
-
-    // Salva as notas no localStorage
-    function saveNotes() {
-      localStorage.setItem('notes', JSON.stringify(notes));
-    }
-
-    // Carrega as notas salvas ao iniciar a aplicação
-    function loadNotes() {
-      notes.forEach(note => {
-        createNote(
-          note.color,
-          note.id,
-          note.content,
-          note.x,
-          note.y,
-          note.width,
-          note.height
-        );
-      });
-      // Aplica a fonte global em todas as notas existentes
-      updateAllNotesFont();
-    }
-
-    loadNotes();
-  </script>
+  // Carrega as notas do usuário
+  const userNotes = users[currentUser].notes || [];
+  userNotes.forEach(note => {
+    createNote(
+      note.color,
+      note.id,
+      note.content,
+      note.x,
+      note.y,
+      note.width,
+      note.height
+    );
+  });
+}
+</script>
 </body>
 </html>
