@@ -61,7 +61,7 @@
       background-color: #ffb9ca;
     }
 
-    /* Paleta de cores */
+    /* Paleta de cores para criar notas */
     #colorPicker {
       position: fixed;
       top: 140px;
@@ -83,7 +83,7 @@
       border: 1px solid #ccc;
     }
 
-    /* Painel para escolha de fonte global com transição suave */
+    /* Painel para escolha de fonte global (com transição suave) */
     #fontPicker {
       position: fixed;
       top: 140px;
@@ -115,25 +115,34 @@
       color: #333;
     }
 
-    #globalFontSelect, 
-    #globalFontColor {
+    /* Seletor de família de fonte */
+    #globalFontSelect {
       font-size: 0.9rem;
       border: 1px solid #ccc;
       border-radius: 4px;
       padding: 5px;
       outline: none;
       font-family: 'Arial', sans-serif;
+      margin-bottom: 10px;
     }
-    #globalFontSelect:focus, 
-    #globalFontColor:focus {
+    #globalFontSelect:focus {
       border-color: #ffb9ca;
       outline: none;
     }
-    #globalFontColor {
-      width: 50px;
+
+    /* Paleta de cores de fonte */
+    #fontColorPalette {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 5px;
+    }
+    .font-color-option {
+      width: 30px;
       height: 30px;
+      border-radius: 50%;
       cursor: pointer;
-      margin-bottom: 10px;
+      border: 1px solid #ccc;
     }
 
     /* Estilo dos post-its */
@@ -189,15 +198,13 @@
     <button id="addButton">+</button>
     <button id="fontButton">T</button>
 
-    <!-- Paleta de cores para criar notas -->
+    <!-- Paleta de cores para criar notas (fundo do post-it) -->
     <div id="colorPicker">
-      <!-- Cores originais -->
       <div class="color-option" data-color="#FFB3BA" style="background-color: #FFB3BA;"></div>
       <div class="color-option" data-color="#FFDFBA" style="background-color: #FFDFBA;"></div>
       <div class="color-option" data-color="#FFFFBA" style="background-color: #FFFFBA;"></div>
       <div class="color-option" data-color="#BAFFC9" style="background-color: #BAFFC9;"></div>
       <div class="color-option" data-color="#BAE1FF" style="background-color: #BAE1FF;"></div>
-      <!-- Novas cores -->
       <div class="color-option" data-color="#FFD1DC" style="background-color: #FFD1DC;"></div>
       <div class="color-option" data-color="#C1FFC1" style="background-color: #C1FFC1;"></div>
       <div class="color-option" data-color="#C9C9FF" style="background-color: #C9C9FF;"></div>
@@ -205,7 +212,7 @@
       <div class="color-option" data-color="#E0FFFF" style="background-color: #E0FFFF;"></div>
     </div>
 
-    <!-- Picker de fontes e cor da fonte (com transição) -->
+    <!-- Picker de fonte global (família e cor) -->
     <div id="fontPicker">
       <label for="globalFontSelect">Escolha a fonte:</label>
       <select id="globalFontSelect">
@@ -220,16 +227,26 @@
         <option value="Verdana">Verdana</option>
       </select>
 
-      <label for="globalFontColor">Cor da fonte:</label>
-      <input type="color" id="globalFontColor" />
+      <label>Cor da fonte:</label>
+      <div id="fontColorPalette">
+        <!-- Paleta de cores para o texto, incluindo branco -->
+        <div class="font-color-option" data-color="#FFD1DC" style="background-color: #FFD1DC;"></div>
+        <div class="font-color-option" data-color="#FFDFBA" style="background-color: #FFDFBA;"></div>
+        <div class="font-color-option" data-color="#FFFFBA" style="background-color: #FFFFBA;"></div>
+        <div class="font-color-option" data-color="#BAFFC9" style="background-color: #BAFFC9;"></div>
+        <div class="font-color-option" data-color="#BAE1FF" style="background-color: #BAE1FF;"></div>
+        <div class="font-color-option" data-color="#C1FFC1" style="background-color: #C1FFC1;"></div>
+        <div class="font-color-option" data-color="#C9C9FF" style="background-color: #C9C9FF;"></div>
+        <div class="font-color-option" data-color="#FFFACD" style="background-color: #FFFACD;"></div>
+        <div class="font-color-option" data-color="#E0FFFF" style="background-color: #E0FFFF;"></div>
+        <div class="font-color-option" data-color="#FFFFFF" style="background-color: #FFFFFF;"></div>
+      </div>
     </div>
   </div>
 
   <script>
-    // Carrega as notas e a fonte global do localStorage
+    // Carrega as notas e configurações globais do localStorage
     let notes = JSON.parse(localStorage.getItem('notes')) || [];
-
-    // Fonte e cor da fonte globais
     let globalFont = localStorage.getItem('globalFont') || "Arial";
     let globalFontColor = localStorage.getItem('globalFontColor') || "#000000";
 
@@ -239,18 +256,17 @@
     const colorPicker = document.getElementById('colorPicker');
     const fontPicker = document.getElementById('fontPicker');
     const globalFontSelect = document.getElementById('globalFontSelect');
-    const globalFontColorInput = document.getElementById('globalFontColor');
+    const fontColorPalette = document.getElementById('fontColorPalette');
 
     // Controle de deslocamento para novas notas (evitar sobreposição)
     let newNoteOffset = 0;
 
-    // Define valores iniciais do seletor de fonte e cor
+    // Define valores iniciais do seletor de fonte
     globalFontSelect.value = globalFont;
-    globalFontColorInput.value = globalFontColor;
 
     // Botão de adição de notas
     addButton.addEventListener('click', () => {
-      // Abre a paleta de cores
+      // Abre a paleta de cores (para escolher cor do post-it)
       colorPicker.style.display = 'flex';
       // Fecha o painel de fonte, se estiver aberto
       if (fontPicker.classList.contains('show')) {
@@ -270,23 +286,23 @@
       }
     });
 
-    // Evento de mudança de fonte global
+    // Ao mudar a família da fonte global
     globalFontSelect.addEventListener('change', (e) => {
       globalFont = e.target.value;
       localStorage.setItem('globalFont', globalFont);
-      // Atualiza a fonte de todas as notas
       updateAllNotesStyle();
     });
 
-    // Evento de mudança de cor da fonte global
-    globalFontColorInput.addEventListener('change', (e) => {
-      globalFontColor = e.target.value;
-      localStorage.setItem('globalFontColor', globalFontColor);
-      // Atualiza a cor de todas as notas
-      updateAllNotesStyle();
+    // Ao clicar em uma das cores de fonte
+    fontColorPalette.querySelectorAll('.font-color-option').forEach(option => {
+      option.addEventListener('click', () => {
+        globalFontColor = option.getAttribute('data-color');
+        localStorage.setItem('globalFontColor', globalFontColor);
+        updateAllNotesStyle();
+      });
     });
 
-    // Aplica fonte e cor globais a todos os textareas
+    // Aplica a fonte e cor globais a todos os textareas
     function updateAllNotesStyle() {
       const allTextAreas = document.querySelectorAll('.note textarea');
       allTextAreas.forEach(ta => {
@@ -295,11 +311,10 @@
       });
     }
 
-    // Cria a nota com a cor selecionada
+    // Cria a nota com a cor de fundo selecionada
     document.querySelectorAll('.color-option').forEach(option => {
       option.addEventListener('click', function() {
         const color = this.getAttribute('data-color');
-        // Ao clicar em uma cor, cria uma nova nota sem ID (nota realmente nova)
         createNote(color);
         colorPicker.style.display = 'none';
       });
